@@ -1,0 +1,194 @@
+name: build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*.*.*']
+  pull_request:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  ruby-prod:
+    name: ruby${{ matrix.ruby }}-prod
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['2.6', '2.7']
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO_LC }}/ruby${{ matrix.ruby }}-prod
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ruby/${{ matrix.ruby }}/Dockerfile.prod
+          build-args: |
+            RUBY_VERSION=${{ matrix.ruby }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=ruby${{ matrix.ruby }}-prod
+          cache-to: type=gha,mode=max,scope=ruby${{ matrix.ruby }}-prod
+
+  ruby-test:
+    name: ruby${{ matrix.ruby }}
+    needs: ruby-prod
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['2.6', '2.7']
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO_LC }}/ruby${{ matrix.ruby }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ruby/${{ matrix.ruby }}/Dockerfile.test
+          build-args: |
+            IMAGE_FROM=${{ env.REGISTRY }}/${{ env.REPO_LC }}/ruby${{ matrix.ruby }}-prod:sha-${{ github.sha }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=ruby${{ matrix.ruby }}-test
+          cache-to: type=gha,mode=max,scope=ruby${{ matrix.ruby }}-test
+
+  postgres-client:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO_LC }}/tools/postgres-client
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: tools/postgres-client
+          file: tools/postgres-client/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=postgres-client
+          cache-to: type=gha,mode=max,scope=postgres-client
+
+  scan:
+    name: trivy ${{ matrix.slug }}
+    needs: [ruby-test, postgres-client]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ruby2.6-prod
+            slug: ruby2.6-prod
+          - image: ruby2.6
+            slug: ruby2.6
+          - image: ruby2.7-prod
+            slug: ruby2.7-prod
+          - image: ruby2.7
+            slug: ruby2.7
+          - image: tools/postgres-client
+            slug: postgres-client
+    steps:
+      - run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.REPO_LC }}/${{ matrix.image }}:sha-${{ github.sha }}
+          format: sarif
+          output: trivy-${{ matrix.slug }}.sarif
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.slug }}.sarif
+          category: trivy-${{ matrix.slug }}
