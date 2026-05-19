@@ -38,5 +38,8 @@ RUN wget https://services.renater.fr/_media/tcs/geant_ov_rsa_ca_4_usertrust_rsa_
     && wget https://services.renater.fr/_media/tcs/geant_ov_rsa_ca_4.pem -O /usr/local/share/ca-certificates/geant_ov_rsa_ca_4.crt \
     && update-ca-certificates
 
+COPY shared/HARICA-TLS-Root-2021-RSA.crt /usr/local/share/ca-certificates/
+RUN update-ca-certificates
+
 COPY shared/proj.tar.gz /tmp/proj.tar.gz
 RUN mkdir -p /opt/proj/share && tar -xf /tmp/proj.tar.gz -C /opt/proj/share/
