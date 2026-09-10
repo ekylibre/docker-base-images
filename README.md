@@ -11,6 +11,8 @@ Base Docker images built by GitHub Actions and pushed to GitHub Container Regist
 | `ruby2.6` | `ruby/2.6/Dockerfile.test` | Test variant, `FROM` the prod image |
 | `ruby2.7-prod` | `ruby/2.7/Dockerfile.prod` | Production Ruby 2.7 base |
 | `ruby2.7` | `ruby/2.7/Dockerfile.test` | Test variant, `FROM` the prod image |
+| `ruby3.3-prod` | `ruby/3.3/Dockerfile.prod` | Production Ruby 3.3 base |
+| `ruby3.3` | `ruby/3.3/Dockerfile.test` | Test variant, `FROM` the prod image |
 | `tools/postgres-client` | `tools/postgres-client/Dockerfile` | Alpine + `postgresql-client` |
 
 Pull example:

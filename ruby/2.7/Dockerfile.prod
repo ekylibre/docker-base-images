@@ -4,6 +4,10 @@ FROM ruby:${RUBY_VERSION}
 
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
 
+RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99-no-check-valid-until && \
+    printf 'deb http://archive.debian.org/debian bullseye main\ndeb http://archive.debian.org/debian bullseye-updates main\n' > /etc/apt/sources.list && \
+    rm -f /etc/apt/sources.list.d/debian.sources
+
 RUN apt-get update && apt-get install -y ca-certificates curl gnupg && \
     mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | \

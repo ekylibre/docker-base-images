@@ -1,12 +1,8 @@
-ARG RUBY_VERSION=2.6
+ARG RUBY_VERSION=3.3
 
 FROM ruby:${RUBY_VERSION}
 
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
-
-RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99-no-check-valid-until && \
-    printf 'deb http://archive.debian.org/debian bullseye main\ndeb http://archive.debian.org/debian bullseye-updates main\n' > /etc/apt/sources.list && \
-    rm -f /etc/apt/sources.list.d/debian.sources
+ENV JAVA_HOME /usr/lib/jvm/java-21-openjdk-amd64
 
 RUN apt-get update && apt-get install -y ca-certificates curl gnupg && \
     mkdir -p /etc/apt/keyrings && \
@@ -15,14 +11,14 @@ RUN apt-get update && apt-get install -y ca-certificates curl gnupg && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
         > /etc/apt/sources.list.d/nodesource.list
 RUN apt-get -y update && apt-get -y upgrade && \
-    mkdir -p /usr/lib/jvm/java-11-openjdk-amd64/jre/lib/amd64 && \
-    ln -s /usr/lib/jvm/java-11-openjdk-amd64/lib/server /usr/lib/jvm/java-11-openjdk-amd64/jre/lib/amd64/server && \
-    apt-get -y install netcat build-essential libreadline-dev libssl-dev zlib1g-dev \
+    mkdir -p /usr/lib/jvm/java-21-openjdk-amd64/jre/lib/amd64 && \
+    ln -s /usr/lib/jvm/java-21-openjdk-amd64/lib/server /usr/lib/jvm/java-21-openjdk-amd64/jre/lib/amd64/server && \
+    apt-get -y install netcat-openbsd build-essential libreadline-dev libssl-dev zlib1g-dev \
         nodejs \
         graphicsmagick \
         postgresql-client \
         libproj-dev libgeos-dev libgeos++-dev `#rgeo` \
-        openjdk-11-jdk  `#rjb` \
+        openjdk-21-jdk  `#rjb` \
         libicu-dev `#charlock_holmes` \
         libpq-dev `#pq` \
         libreoffice \
@@ -31,10 +27,12 @@ RUN apt-get -y update && apt-get -y upgrade && \
         tesseract-ocr-jpn tesseract-ocr-osd tesseract-ocr-spa  `#ocr`\
         wget && \
     npm install -g yarn && \
-    gem install bundler -v 2.4.22
-    
-RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - && \
-    echo "deb http://apt.postgresql.org/pub/repos/apt/ $(grep -oP 'VERSION_CODENAME=\K\w+' /etc/os-release)-pgdg main" | tee  /etc/apt/sources.list.d/pgdg.list && \
+    gem install bundler -v 2.5.23
+
+RUN install -d /usr/share/postgresql-common/pgdg && \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc && \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt/ $(grep -oP 'VERSION_CODENAME=\K\w+' /etc/os-release)-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list && \
     apt-get update && \
     apt-get -y install --no-install-recommends postgresql-client-13 python3-pip git
 

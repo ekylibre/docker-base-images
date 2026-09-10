@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: ['2.6', '2.7']
+        ruby: ['2.6', '2.7', '3.3']
     steps:
       - uses: actions/checkout@v4
 
@@ -68,7 +68,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: ['2.6', '2.7']
+        ruby: ['2.6', '2.7', '3.3']
     steps:
       - uses: actions/checkout@v4
 
@@ -168,6 +168,10 @@ jobs:
             slug: ruby2.7-prod
           - image: ruby2.7
             slug: ruby2.7
+          - image: ruby3.3-prod
+            slug: ruby3.3-prod
+          - image: ruby3.3
+            slug: ruby3.3
           - image: tools/postgres-client
             slug: postgres-client
     steps:
