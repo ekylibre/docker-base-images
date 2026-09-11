@@ -1,0 +1,47 @@
+ARG RUBY_VERSION=3.4.10
+
+FROM ruby:${RUBY_VERSION}
+
+ENV JAVA_HOME /usr/lib/jvm/java-21-openjdk-amd64
+
+RUN apt-get update && apt-get install -y ca-certificates curl gnupg && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | \
+        gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list
+RUN apt-get -y update && apt-get -y upgrade && \
+    mkdir -p /usr/lib/jvm/java-21-openjdk-amd64/jre/lib/amd64 && \
+    ln -s /usr/lib/jvm/java-21-openjdk-amd64/lib/server /usr/lib/jvm/java-21-openjdk-amd64/jre/lib/amd64/server && \
+    apt-get -y install netcat-openbsd build-essential libreadline-dev libssl-dev zlib1g-dev \
+        nodejs \
+        graphicsmagick \
+        postgresql-client \
+        libproj-dev libgeos-dev libgeos++-dev `#rgeo` \
+        openjdk-21-jdk  `#rjb` \
+        libicu-dev `#charlock_holmes` \
+        libpq-dev `#pq` \
+        libreoffice \
+        libsodium-dev \
+        poppler-utils tesseract-ocr tesseract-ocr-fra tesseract-ocr-ara tesseract-ocr-eng  `#ocr` \
+        tesseract-ocr-jpn tesseract-ocr-osd tesseract-ocr-spa  `#ocr`\
+        wget && \
+    npm install -g yarn && \
+    gem install bundler -v 2.5.23
+
+RUN install -d /usr/share/postgresql-common/pgdg && \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc && \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt/ $(grep -oP 'VERSION_CODENAME=\K\w+' /etc/os-release)-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update && \
+    apt-get -y install --no-install-recommends postgresql-client-13 python3-pip git
+
+RUN wget https://services.renater.fr/_media/tcs/geant_ov_rsa_ca_4_usertrust_rsa_certification_authority.pem -O /usr/local/share/ca-certificates/geant_ov_rsa_ca_4_usertrust_rsa_certification_authority.crt \
+    && wget https://services.renater.fr/_media/tcs/geant_ov_rsa_ca_4.pem -O /usr/local/share/ca-certificates/geant_ov_rsa_ca_4.crt \
+    && update-ca-certificates
+
+COPY shared/HARICA-TLS-Root-2021-RSA.crt /usr/local/share/ca-certificates/
+RUN update-ca-certificates
+
+COPY shared/proj.tar.gz /tmp/proj.tar.gz
+RUN mkdir -p /opt/proj/share && tar -xf /tmp/proj.tar.gz -C /opt/proj/share/
