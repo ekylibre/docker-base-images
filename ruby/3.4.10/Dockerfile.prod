@@ -29,12 +29,25 @@ RUN apt-get -y update && apt-get -y upgrade && \
     npm install -g yarn && \
     gem install bundler -v 2.5.23
 
+# Client PostgreSQL 18 depuis le dépôt PGDG. `pg_dump` refuse un serveur plus
+# récent que lui — mesuré, un 17.11 contre un serveur 18.6 s'arrête sur
+# « aborting because of server version mismatch » — et c'est lui qui fait
+# `db:structure:dump` comme `Ekylibre::Tenant.dump` dans Ekylibre. Le client
+# doit donc précéder le serveur, non le suivre : la v6 vise PostgreSQL 18 pour
+# `uuidv7()` native.
+#
+# Un client plus récent que le serveur, lui, ne pose pas de problème : le 18
+# dumpe encore les serveurs 13 en service.
+#
+# `postgresql-client-common` fournit un `/usr/bin/pg_dump` qui choisit la plus
+# haute version installée ; la ligne `postgresql-client` de Debian plus haut
+# (17 sur trixie) reste donc dans l'image sans rien décider.
 RUN install -d /usr/share/postgresql-common/pgdg && \
     curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc && \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt/ $(grep -oP 'VERSION_CODENAME=\K\w+' /etc/os-release)-pgdg main" \
         > /etc/apt/sources.list.d/pgdg.list && \
     apt-get update && \
-    apt-get -y install --no-install-recommends postgresql-client-13 python3-pip git
+    apt-get -y install --no-install-recommends postgresql-client-18 python3-pip git
 
 RUN wget https://services.renater.fr/_media/tcs/geant_ov_rsa_ca_4_usertrust_rsa_certification_authority.pem -O /usr/local/share/ca-certificates/geant_ov_rsa_ca_4_usertrust_rsa_certification_authority.crt \
     && wget https://services.renater.fr/_media/tcs/geant_ov_rsa_ca_4.pem -O /usr/local/share/ca-certificates/geant_ov_rsa_ca_4.crt \
